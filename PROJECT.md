@@ -17,11 +17,11 @@ Lightweight Android app that accurately tracks **mobile data usage** per app (fo
 
 | Concern | Mechanism |
 |---|---|
-| Usage source | `NetworkStatsManager` filtered to MOBILE, per-UID rx/tx |
-| Fine-grained sampling | `TrafficStats` per-UID counters snapshotted each tick; delta since last tick = window usage |
-| FG/BG attribution | `UsageStatsManager.queryEvents(window)` → each app's foreground intervals; unattributed UIDs = system services bucket |
+| Usage source | `NetworkStatsManager.querySummary(MOBILE, window)` per-UID rx/tx — authoritative per window; spans reboots; mobile-only by construction (TrafficStats dropped: mixes in Wi-Fi + resets on boot) |
+| Fine-grained sampling | Not needed — NSM returns exact per-window totals; windows are 15 min |
+| FG/BG attribution | `UsageStatsManager.queryEvents(window)` → each app's foreground intervals → fraction of window foregrounded; unattributed UIDs = system bucket |
 | 15-min tick | Single `PeriodicWorkRequest(15.min)` — API minimum is exactly 15 min, flexes under Doze (accepted) |
-| Reboot survival | WorkManager auto-restores after boot; missed windows backfilled from hourly `NetworkStatsManager` buckets; boot receiver sets "device rebooted" flag (TrafficStats counters reset on boot) |
+| Reboot survival | WorkManager auto-restores after boot; boot receiver sets `rebootPending` flag + re-ensures periodic work; NSM queries cover missed windows natively |
 | Ping | Updatable notification each tick: mobile total today, last-window delta, top-3 apps by MB |
 | Log | Room table `(tick, pkg/uid, rx, tx, fgRx, fgTx)` + CSV export button |
 | Anti-kill | Battery-optimization exemption dialog + one-time OEM autostart hint screen |

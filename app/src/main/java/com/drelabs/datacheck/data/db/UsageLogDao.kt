@@ -38,6 +38,13 @@ interface UsageLogDao {
     )
     suspend fun totalsSince(sinceMs: Long): TotalsRow?
 
+    @Query(
+        "SELECT u.tickStart AS tickStart, t.endMs AS tickEnd, u.uid AS uid, u.pkg AS pkg, " +
+            "u.rx AS rx, u.tx AS tx, u.fgRx AS fgRx, u.fgTx AS fgTx " +
+            "FROM usage u INNER JOIN ticks t ON t.id = u.tickId ORDER BY u.tickStart, u.pkg",
+    )
+    suspend fun exportRows(): List<ExportRow>
+
     @Query("DELETE FROM ticks WHERE endMs < :cutoffMs")
     suspend fun deleteTicksBefore(cutoffMs: Long)
 
