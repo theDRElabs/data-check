@@ -10,11 +10,15 @@ class Prefs(context: Context) {
 
     var lastTickEndMs: Long
         get() = sp.getLong(KEY_LAST_TICK, 0L)
-        set(value) = sp.edit().putLong(KEY_LAST_TICK, value).commit()
+        set(value) {
+            sp.edit().putLong(KEY_LAST_TICK, value).commit()
+        }
 
     var rebootPending: Boolean
         get() = sp.getBoolean(KEY_REBOOT, false)
-        set(value) = sp.edit().putBoolean(KEY_REBOOT, value).commit()
+        set(value) {
+            sp.edit().putBoolean(KEY_REBOOT, value).commit()
+        }
 
     companion object {
         private const val KEY_LAST_TICK = "last_tick_end_ms"
