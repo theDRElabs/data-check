@@ -8,6 +8,7 @@ import androidx.room.Transaction
 
 data class AppUsageRow(val pkg: String, val total: Long, val fgTotal: Long)
 data class TotalsRow(val total: Long, val fgTotal: Long)
+data class TickTotal(val tickStart: Long, val total: Long)
 
 @Dao
 interface UsageLogDao {
@@ -37,6 +38,19 @@ interface UsageLogDao {
         "SELECT SUM(rx + tx) AS total, SUM(fgRx + fgTx) AS fgTotal FROM usage WHERE tickStart >= :sinceMs",
     )
     suspend fun totalsSince(sinceMs: Long): TotalsRow?
+
+    @Query(
+        "SELECT tickStart, SUM(rx + tx) AS total FROM usage WHERE tickStart >= :sinceMs " +
+            "GROUP BY tickStart ORDER BY tickStart",
+    )
+    suspend fun dailySince(sinceMs: Long): List<TickTotal>
+
+    @Query(
+        "SELECT u.tickStart AS tickStart, SUM(u.rx + u.tx) AS total FROM usage u " +
+            "INNER JOIN ticks t ON t.id = u.tickId " +
+            "WHERE t.endMs = (SELECT MAX(endMs) FROM ticks) GROUP BY u.tickStart",
+    )
+    suspend fun latestTickTotal(): TickTotal?
 
     @Query(
         "SELECT u.tickStart AS tickStart, t.endMs AS tickEnd, u.uid AS uid, u.pkg AS pkg, " +
