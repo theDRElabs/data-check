@@ -46,8 +46,12 @@ Sideloaded only — no store distribution.
 - Clean: `./gradlew clean`
 - JVM cap is mandatory on this device: `org.gradle.jvmargs=-Xmx1536m`
   (already set in `gradle.properties`; never raise it without asking).
-- No JDK/Android SDK is installed in the local environment yet; builds either
-  happen after the user installs a toolchain or via CI.
+- Builds run on GitHub Actions (`.github/workflows/ci.yml`), not locally:
+  this device has no JDK/Android SDK by user decision. Debug APK is attached
+  as the `datacheck-debug-apk` artifact on every green run of
+  `theDRElabs/data-check`. Never add local-toolchain assumptions to scripts.
+- Repo: private `theDRElabs/data-check`, branch `main`, commits pushed with
+  the noreply email already configured in local git config.
 
 ## Development Workflow
 - Work milestone-by-milestone (M1–M6 in `PROJECT.md`). Finish a milestone,
