@@ -149,9 +149,19 @@ class SamplingEngine(private val context: Context) {
         }.filterValues { it > 0.0 }
     }
 
-    private fun labelForUid(uid: Int): String = when (uid) {
-        Process.SYSTEM_UID, in 0 until 2000 -> context.packageManager.getNameForUid(uid) ?: "system"
-        else -> context.packageManager.getNameForUid(uid)?.substringAfterLast(':') ?: "uid:$uid"
+    private fun labelForUid(uid: Int): String = when {
+        uid == Process.SYSTEM_UID -> "Android System"
+        uid in 0 until 2000 -> "System (uid $uid)"
+        else -> {
+            val pm = context.packageManager
+            pm.getPackagesForUid(uid)
+                ?.firstNotNullOfOrNull { pkg ->
+                    runCatching {
+                        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                    }.getOrNull()
+                }
+                ?: "App (uid $uid)"
+        }
     }
 
     companion object {

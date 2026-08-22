@@ -51,7 +51,13 @@ fun DashboardScreen() {
     var exportFile by remember { mutableStateOf<File?>(null) }
 
     LaunchedEffect(Unit) {
+        runCatching { backfillTick(context) }
         data = loadDashboard(context)
+    }
+
+    val powerManager = context.getSystemService(android.os.PowerManager::class.java)
+    val batteryExempt = remember {
+        powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
     }
 
     Column(
@@ -114,6 +120,27 @@ fun DashboardScreen() {
             }
         } ?: Text("Waiting for first tick…", style = MaterialTheme.typography.bodyMedium)
 
+        if (!batteryExempt) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Battery saver may delay background pings.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Button(
+                        onClick = {
+                            context.startActivity(
+                                Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Unrestrict DataCheck")
+                    }
+                }
+            }
+        }
+
         Button(
             onClick = {
                 scope.launch { exportFile = CsvExporter.export(context) }
@@ -143,6 +170,15 @@ private fun share(context: Context, file: File) {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(Intent.createChooser(intent, "Share CSV"))
+}
+
+private suspend fun backfillTick(context: Context) {
+    val prefs = com.drelabs.datacheck.data.Prefs(context)
+    val now = System.currentTimeMillis()
+    val last = prefs.lastTickEndMs
+    if (last == 0L || now - last >= 10 * 60_000L) {
+        com.drelabs.datacheck.data.SamplingEngine(context).runTick(now)
+    }
 }
 
 private suspend fun loadDashboard(context: Context): DashboardData {
