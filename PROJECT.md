@@ -23,6 +23,9 @@ Lightweight Android app that accurately tracks **mobile data usage** per app (fo
 | 15-min tick | Single `PeriodicWorkRequest(15.min)` — API minimum is exactly 15 min, flexes under Doze (accepted) |
 | Reboot survival | WorkManager auto-restores after boot; boot receiver sets `rebootPending` flag + re-ensures periodic work; NSM queries cover missed windows natively |
 | Ping | Updatable notification each tick: mobile total today, last-window delta, top-3 apps by MB |
+| FG/BG split v2 | `NetworkStatsManager.queryDetailsForUid` state buckets (STATE_FOREGROUND vs DEFAULT) — real system attribution; USM time-proportional estimate only as fallback |
+| Bundle tracker | User-entered bundle size + renewal day (Prefs); dashboard card shows cycle usage %, remaining, days-to-renewal |
+| Settings page | Ping interval (15m–24h, WorkManager floor 15m, `ExistingPeriodicWorkPolicy.UPDATE`) + bundle inputs; back navigation via `BackHandler` |
 | Log | Room table `(tick, pkg/uid, rx, tx, fgRx, fgTx)` + CSV export button |
 | Anti-kill | Battery-optimization exemption dialog + one-time OEM autostart hint screen |
 

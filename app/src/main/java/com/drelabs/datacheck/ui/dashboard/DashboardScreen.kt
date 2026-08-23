@@ -10,9 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,10 +27,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.drelabs.datacheck.data.CsvExporter
+import com.drelabs.datacheck.data.Prefs
 import com.drelabs.datacheck.data.db.AppUsageRow
 import com.drelabs.datacheck.data.db.UsageLogDb
 import com.drelabs.datacheck.util.AppLabels
@@ -42,10 +49,14 @@ data class DashboardData(
     val lastWindowDelta: Long,
     val topAppsToday: List<AppUsageRow>,
     val daily: List<Pair<LocalDate, Long>>,
+    val bundleBytes: Long = 0,
+    val bundleUsed: Long = 0,
+    val bundlePct: Float = 0f,
+    val bundleDaysLeft: Long = 0,
 )
 
 @Composable
-fun DashboardScreen() {
+fun DashboardScreen(onOpenSettings: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var data by remember { mutableStateOf<DashboardData?>(null) }
@@ -68,7 +79,16 @@ fun DashboardScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("DataCheck", style = MaterialTheme.typography.headlineMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("DataCheck", style = MaterialTheme.typography.headlineMedium)
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
+        }
         data?.let { d ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), Arrangement.spacedBy(4.dp)) {
@@ -81,6 +101,30 @@ fun DashboardScreen() {
                     if (d.lastWindowDelta > 0) {
                         Text(
                             "+${Format.bytes(d.lastWindowDelta)} in last window",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+
+            if (d.bundleBytes > 0) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text("Bundle", style = MaterialTheme.typography.labelMedium)
+                            Text("${(d.bundlePct * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                        }
+                        LinearProgressIndicator(
+                            progress = { d.bundlePct },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            "${Format.bytes(d.bundleUsed)} of ${Format.bytes(d.bundleBytes)} used · " +
+                                "${Format.bytes((d.bundleBytes - d.bundleUsed).coerceAtLeast(0))} left · " +
+                                "${d.bundleDaysLeft}d to renewal",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -187,6 +231,7 @@ private suspend fun backfillTick(context: Context) {
 
 private suspend fun loadDashboard(context: Context): DashboardData {
     val dao = UsageLogDb.get(context).usageLogDao()
+    val prefs = Prefs(context)
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now(zone)
     val midnight = today.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -198,11 +243,33 @@ private suspend fun loadDashboard(context: Context): DashboardData {
         .map { (day, rows) -> day to rows.sumOf { it.total } }
         .sortedBy { it.first }
 
+    val bundle = prefs.bundleBytes
+    var bundleUsed = 0L
+    var bundlePct = 0f
+    var daysLeft = 0L
+    if (bundle > 0) {
+        val cycleStart = cycleStart(today, prefs.bundleRenewalDay)
+        bundleUsed = dao.totalsSince(cycleStart.atStartOfDay(zone).toInstant().toEpochMilli())
+            ?.total ?: 0L
+        bundlePct = (bundleUsed.toDouble() / bundle).toFloat().coerceIn(0f, 1f)
+        daysLeft = java.time.temporal.ChronoUnit.DAYS.between(today, cycleStart.plusMonths(1))
+    }
+
     return DashboardData(
         todayTotal = totals?.total ?: 0L,
         todayFg = totals?.fgTotal ?: 0L,
         lastWindowDelta = dao.latestTickTotal()?.total ?: 0L,
         topAppsToday = dao.topAppsSince(midnight, 10),
         daily = daily,
+        bundleBytes = bundle,
+        bundleUsed = bundleUsed,
+        bundlePct = bundlePct,
+        bundleDaysLeft = daysLeft,
     )
+}
+
+private fun cycleStart(today: LocalDate, renewalDay: Int): LocalDate {
+    val day = renewalDay.coerceIn(1, 28)
+    return if (today.dayOfMonth >= day) today.withDayOfMonth(day)
+    else today.minusMonths(1).withDayOfMonth(day)
 }

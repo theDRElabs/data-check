@@ -11,7 +11,8 @@ Sideloaded only — no store distribution.
 ## Locked Product Decisions (do not reopen without user approval)
 - Mobile data only (never add Wi-Fi tracking silently).
 - Ping = single updatable notification refreshed each tick; no sound/spam.
-- Tick = WorkManager periodic 15 min only; **no** `AlarmManager` exact alarms,
+- Tick = WorkManager periodic only, interval user-configurable (floor 15 min =
+  WorkManager API minimum); **no** `AlarmManager` exact alarms,
   no `SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM` permission.
 - Fully offline app: **no INTERNET permission, ever.**
 - Allowed permissions are exactly these 4: `ACCESS_NETWORK_STATE`,

@@ -7,6 +7,8 @@ object AppLabels {
 
     fun label(context: Context, pkg: String): String {
         when {
+            pkg == "tethering" -> return "Tethering / Hotspot"
+            pkg == "removed-apps" -> return "Removed apps"
             pkg == "android-system" -> return "Android System"
             pkg.startsWith("system-") -> return "System (uid " + pkg.removePrefix("system-") + ")"
             pkg.startsWith("uid-") -> return "App (" + pkg.replaceFirst("uid-", "uid ") + ")"

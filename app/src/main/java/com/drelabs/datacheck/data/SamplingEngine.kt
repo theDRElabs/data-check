@@ -27,9 +27,17 @@ class SamplingEngine(private val context: Context) {
         val fgByPkg = foregroundFractions(start, nowMs)
         val rows = perUid.map { (uid, bytes) ->
             val pkg = pkgNameForUid(uid)
-            val frac = fgByPkg[pkg] ?: 0.0
-            val (fgRx, _) = Attribution.split(bytes.first, frac)
-            val (fgTx, _) = Attribution.split(bytes.second, frac)
+            val total = bytes.first + bytes.second
+            val fgBytes: Long
+            val stateSplit = stateSplitForUid(uid, start, nowMs)
+            fgBytes = if (stateSplit != null && stateSplit.first + stateSplit.second > 0) {
+                stateSplit.first.coerceIn(0L, total)
+            } else {
+                val frac = fgByPkg[pkg] ?: 0.0
+                Attribution.split(total, frac).first
+            }
+            val fgRx = if (total > 0) (fgBytes.toDouble() * bytes.first / total).toLong() else 0L
+            val fgTx = fgBytes - fgRx
             UsageEntity(
                 tickId = 0,
                 tickStart = start,
@@ -150,9 +158,42 @@ class SamplingEngine(private val context: Context) {
     }
 
     private fun pkgNameForUid(uid: Int): String = when {
+        uid == NetworkStats.Bucket.UID_TETHERING -> "tethering"
+        uid == NetworkStats.Bucket.UID_REMOVED -> "removed-apps"
         uid == Process.SYSTEM_UID -> "android-system"
         uid in 0 until 2000 -> "system-$uid"
         else -> context.packageManager.getPackagesForUid(uid)?.firstOrNull() ?: "uid-$uid"
+    }
+
+    private fun stateSplitForUid(uid: Int, startMs: Long, endMs: Long): Pair<Long, Long>? {
+        if (uid < 0) return null
+        val nsm = context.getSystemService(NetworkStatsManager::class.java) ?: return null
+        return try {
+            val stats =
+                nsm.queryDetailsForUid(ConnectivityManager.TYPE_MOBILE, null, startMs, endMs, uid)
+            var fg = 0L
+            var bg = 0L
+            val bucket = NetworkStats.Bucket()
+            while (stats.hasNextBucket()) {
+                stats.getNextBucket(bucket)
+                val overlap =
+                    (minOf(bucket.endStamp, endMs) - maxOf(bucket.startStamp, startMs))
+                        .coerceAtLeast(0L)
+                if (overlap == 0L) continue
+                val dur = (bucket.endStamp - bucket.startStamp).coerceAtLeast(1L)
+                val frac = overlap.toDouble() / dur
+                val bytes = (bucket.rxBytes.coerceAtLeast(0L) + bucket.txBytes.coerceAtLeast(0L))
+                if (bucket.state == NetworkStats.Bucket.STATE_FOREGROUND) {
+                    fg += (bytes * frac).toLong()
+                } else {
+                    bg += (bytes * frac).toLong()
+                }
+            }
+            stats.close()
+            fg to bg
+        } catch (_: Exception) {
+            null
+        }
     }
 
     companion object {
