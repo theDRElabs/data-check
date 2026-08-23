@@ -176,17 +176,11 @@ class SamplingEngine(private val context: Context) {
             val bucket = NetworkStats.Bucket()
             while (stats.hasNextBucket()) {
                 stats.getNextBucket(bucket)
-                val overlap =
-                    (minOf(bucket.endStamp, endMs) - maxOf(bucket.startStamp, startMs))
-                        .coerceAtLeast(0L)
-                if (overlap == 0L) continue
-                val dur = (bucket.endStamp - bucket.startStamp).coerceAtLeast(1L)
-                val frac = overlap.toDouble() / dur
                 val bytes = (bucket.rxBytes.coerceAtLeast(0L) + bucket.txBytes.coerceAtLeast(0L))
                 if (bucket.state == NetworkStats.Bucket.STATE_FOREGROUND) {
-                    fg += (bytes * frac).toLong()
+                    fg += bytes
                 } else {
-                    bg += (bytes * frac).toLong()
+                    bg += bytes
                 }
             }
             stats.close()
