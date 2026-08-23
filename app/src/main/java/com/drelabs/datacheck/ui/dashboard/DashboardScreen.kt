@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.drelabs.datacheck.data.CsvExporter
 import com.drelabs.datacheck.data.db.AppUsageRow
 import com.drelabs.datacheck.data.db.UsageLogDb
+import com.drelabs.datacheck.util.AppLabels
 import com.drelabs.datacheck.util.Format
 import java.io.File
 import java.time.Instant
@@ -95,7 +96,10 @@ fun DashboardScreen() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Column {
-                        Text(app.pkg.substringBeforeLast('.'), style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            AppLabels.label(context, app.pkg),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                         Text(
                             "fg ${Format.bytes(app.fgTotal)} · bg ${Format.bytes(app.total - app.fgTotal)}",
                             style = MaterialTheme.typography.bodySmall,

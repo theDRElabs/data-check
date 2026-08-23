@@ -44,7 +44,7 @@ object PingNotifier {
         )
         val style = NotificationCompat.InboxStyle()
         topApps.forEach { (pkg, bytes) ->
-            style.addLine("${Format.bytes(bytes)} — ${pkg.substringBeforeLast('.')}")
+            style.addLine("${Format.bytes(bytes)} — $pkg")
         }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_ping)

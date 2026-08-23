@@ -26,7 +26,7 @@ class SamplingEngine(private val context: Context) {
         val device = queryDeviceTotal(start, nowMs)
         val fgByPkg = foregroundFractions(start, nowMs)
         val rows = perUid.map { (uid, bytes) ->
-            val pkg = labelForUid(uid)
+            val pkg = pkgNameForUid(uid)
             val frac = fgByPkg[pkg] ?: 0.0
             val (fgRx, _) = Attribution.split(bytes.first, frac)
             val (fgTx, _) = Attribution.split(bytes.second, frac)
@@ -149,19 +149,10 @@ class SamplingEngine(private val context: Context) {
         }.filterValues { it > 0.0 }
     }
 
-    private fun labelForUid(uid: Int): String = when {
-        uid == Process.SYSTEM_UID -> "Android System"
-        uid in 0 until 2000 -> "System (uid $uid)"
-        else -> {
-            val pm = context.packageManager
-            pm.getPackagesForUid(uid)
-                ?.firstNotNullOfOrNull { pkg ->
-                    runCatching {
-                        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-                    }.getOrNull()
-                }
-                ?: "App (uid $uid)"
-        }
+    private fun pkgNameForUid(uid: Int): String = when {
+        uid == Process.SYSTEM_UID -> "android-system"
+        uid in 0 until 2000 -> "system-$uid"
+        else -> context.packageManager.getPackagesForUid(uid)?.firstOrNull() ?: "uid-$uid"
     }
 
     companion object {

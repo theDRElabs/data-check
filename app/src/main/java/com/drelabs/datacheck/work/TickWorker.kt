@@ -6,6 +6,7 @@ import androidx.work.WorkerParameters
 import com.drelabs.datacheck.data.SamplingEngine
 import com.drelabs.datacheck.data.db.UsageLogDb
 import com.drelabs.datacheck.notify.PingNotifier
+import com.drelabs.datacheck.util.AppLabels
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -27,7 +28,9 @@ class TickWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val midnight = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val todayTotal = dao.totalsSince(midnight)?.total ?: 0L
         val windowDelta = result?.rows?.sumOf { it.rx + it.tx } ?: 0L
-        val topApps = dao.topAppsSince(midnight, 3).map { it.pkg to it.total }
+        val topApps = dao.topAppsSince(midnight, 3).map {
+            AppLabels.label(context, it.pkg) to it.total
+        }
         PingNotifier.show(context, todayTotal, windowDelta, topApps)
     }
 
