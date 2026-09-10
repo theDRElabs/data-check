@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -8,7 +10,7 @@ plugins {
 // Release signing: self-signed PKCS12 keystore committed to the repo
 // (personal sideload app — see AGENTS.md). Passwords live alongside in
 // keystore/keystore.properties; PKCS12 uses a single password for store+key.
-val releaseKeystoreProperties = java.util.Properties().apply {
+val releaseKeystoreProperties = Properties().apply {
     rootProject.file("keystore/keystore.properties").inputStream().use { load(it) }
 }
 
