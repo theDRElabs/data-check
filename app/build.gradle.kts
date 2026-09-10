@@ -5,6 +5,13 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// Release signing: self-signed PKCS12 keystore committed to the repo
+// (personal sideload app — see AGENTS.md). Passwords live alongside in
+// keystore/keystore.properties; PKCS12 uses a single password for store+key.
+val releaseKeystoreProperties = java.util.Properties().apply {
+    rootProject.file("keystore/keystore.properties").inputStream().use { load(it) }
+}
+
 android {
     namespace = "com.drelabs.datacheck"
     compileSdk = 35
@@ -17,11 +24,22 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file(releaseKeystoreProperties.getProperty("storeFile"))
+            storeType = releaseKeystoreProperties.getProperty("storeType")
+            storePassword = releaseKeystoreProperties.getProperty("storePassword")
+            keyAlias = releaseKeystoreProperties.getProperty("keyAlias")
+            keyPassword = releaseKeystoreProperties.getProperty("keyPassword")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
