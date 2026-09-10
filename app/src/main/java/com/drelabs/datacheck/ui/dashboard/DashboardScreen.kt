@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.drelabs.datacheck.data.CsvExporter
 import com.drelabs.datacheck.data.Prefs
+import com.drelabs.datacheck.data.Validation
 import com.drelabs.datacheck.data.db.AppUsageRow
 import com.drelabs.datacheck.data.db.UsageLogDb
 import com.drelabs.datacheck.util.AppLabels
@@ -53,6 +54,7 @@ data class DashboardData(
     val bundleUsed: Long = 0,
     val bundlePct: Float = 0f,
     val bundleDaysLeft: Long = 0,
+    val validation: Validation.CardState = Validation.CardState.Hidden,
 )
 
 @Composable
@@ -127,6 +129,46 @@ fun DashboardScreen(onOpenSettings: () -> Unit = {}) {
                                 "${d.bundleDaysLeft}d to renewal",
                             style = MaterialTheme.typography.bodySmall,
                         )
+                    }
+                }
+            }
+
+            when (val v = d.validation) {
+                Validation.CardState.Hidden -> {}
+                Validation.CardState.Error -> {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), Arrangement.spacedBy(4.dp)) {
+                            Text("Validation", style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                "Couldn't read NSM raw total — check usage access and reopen.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                }
+
+                is Validation.CardState.Values -> {
+                    val deltaText = if (v.deltaBytes < 0) {
+                        "-${Format.bytes(-v.deltaBytes)}"
+                    } else {
+                        Format.bytes(v.deltaBytes)
+                    }
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), Arrangement.spacedBy(4.dp)) {
+                            Text("Validation", style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                "NSM raw today ${Format.bytes(v.nsmRawTodayBytes)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                "Logged today ${Format.bytes(v.loggedTodayBytes)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                "Delta $deltaText",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
             }
@@ -255,6 +297,17 @@ private suspend fun loadDashboard(context: Context): DashboardData {
         daysLeft = java.time.temporal.ChronoUnit.DAYS.between(today, cycleStart.plusMonths(1))
     }
 
+    val validation = if (prefs.showValidationCard) {
+        Validation.buildState(
+            toggleEnabled = true,
+            nsmRawTodayBytes = com.drelabs.datacheck.data.SamplingEngine(context)
+                .rawMobileTotalTodayBytes(),
+            loggedTodayBytes = totals?.total ?: 0L,
+        )
+    } else {
+        Validation.CardState.Hidden
+    }
+
     return DashboardData(
         todayTotal = totals?.total ?: 0L,
         todayFg = totals?.fgTotal ?: 0L,
@@ -265,6 +318,7 @@ private suspend fun loadDashboard(context: Context): DashboardData {
         bundleUsed = bundleUsed,
         bundlePct = bundlePct,
         bundleDaysLeft = daysLeft,
+        validation = validation,
     )
 }
 

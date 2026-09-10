@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -50,6 +51,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var unitIsGb by remember { mutableStateOf(prefs.bundleBytes == 0L || prefs.bundleBytes >= (1L shl 30)) }
     var renewalDay by remember { mutableStateOf(prefs.bundleRenewalDay.toString()) }
     var saved by remember { mutableStateOf(false) }
+    var showValidation by remember { mutableStateOf(prefs.showValidationCard) }
 
     Column(
         modifier = Modifier
@@ -140,6 +142,30 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
         if (saved) {
             Text("Saved", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
+
+        HorizontalDivider()
+
+        Text("Validation", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text("Show validation card", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Dashboard card comparing NSM raw total with logged ticks.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Switch(
+                checked = showValidation,
+                onCheckedChange = {
+                    showValidation = it
+                    prefs.showValidationCard = it
+                },
+            )
         }
     }
 }

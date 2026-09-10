@@ -38,11 +38,18 @@ class Prefs(context: Context) {
             sp.edit().putInt(KEY_RENEWAL, value).commit()
         }
 
+    var showValidationCard: Boolean
+        get() = sp.getBoolean(KEY_VALIDATION, false)
+        set(value) {
+            sp.edit().putBoolean(KEY_VALIDATION, value).commit()
+        }
+
     companion object {
         private const val KEY_LAST_TICK = "last_tick_end_ms"
         private const val KEY_REBOOT = "reboot_pending"
         private const val KEY_INTERVAL = "ping_interval_minutes"
         private const val KEY_BUNDLE = "bundle_bytes"
         private const val KEY_RENEWAL = "bundle_renewal_day"
+        private const val KEY_VALIDATION = "show_validation_card"
     }
 }

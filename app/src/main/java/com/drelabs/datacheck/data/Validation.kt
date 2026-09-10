@@ -4,12 +4,8 @@ package com.drelabs.datacheck.data
  * Pure logic for the dashboard validation card (ISSUE-002).
  *
  * The card compares the NetworkStatsManager raw mobile total for today with
- * the sum of logged tick rows for today, so a mismatch versus Android
- * Settings is attributable (our sampling vs system-level counters).
- *
- * Stub bodies: these return deliberately wrong placeholders so the
- * ValidationLogicTest suite fails at runtime; phase 2 replaces the bodies
- * with the real logic, signatures unchanged.
+ * the sum of logged tick rows today, so a mismatch versus Android Settings
+ * is attributable (our sampling vs system-level counters).
  */
 object Validation {
 
@@ -36,7 +32,7 @@ object Validation {
      * byte counts, so Long subtraction cannot overflow.
      */
     fun delta(nsmRawTodayBytes: Long, loggedTodayBytes: Long): Long {
-        return 0L
+        return nsmRawTodayBytes - loggedTodayBytes
     }
 
     /**
@@ -50,6 +46,12 @@ object Validation {
         nsmRawTodayBytes: Long?,
         loggedTodayBytes: Long,
     ): CardState {
-        return CardState.Hidden
+        if (!toggleEnabled) return CardState.Hidden
+        if (nsmRawTodayBytes == null) return CardState.Error
+        return CardState.Values(
+            nsmRawTodayBytes = nsmRawTodayBytes,
+            loggedTodayBytes = loggedTodayBytes,
+            deltaBytes = delta(nsmRawTodayBytes, loggedTodayBytes),
+        )
     }
 }

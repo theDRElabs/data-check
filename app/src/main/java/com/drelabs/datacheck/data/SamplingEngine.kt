@@ -11,6 +11,8 @@ import com.drelabs.datacheck.data.Attribution.Interval
 import com.drelabs.datacheck.data.db.TickEntity
 import com.drelabs.datacheck.data.db.UsageEntity
 import com.drelabs.datacheck.data.db.UsageLogDb
+import java.time.LocalDate
+import java.time.ZoneId
 
 class SamplingEngine(private val context: Context) {
 
@@ -58,6 +60,18 @@ class SamplingEngine(private val context: Context) {
         )
         prefs.rebootPending = false
         return result
+    }
+
+    /**
+     * Raw NSM mobile total (rx+tx) for today's local window, for the
+     * dashboard validation card. Returns null when NSM is unavailable or
+     * the query fails. Read-only: never writes rows.
+     */
+    fun rawMobileTotalTodayBytes(nowMs: Long = System.currentTimeMillis()): Long? {
+        val zone = ZoneId.systemDefault()
+        val midnight = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
+        val device = queryDeviceTotal(midnight, nowMs) ?: return null
+        return device.first + device.second
     }
 
     private suspend fun saveTick(
