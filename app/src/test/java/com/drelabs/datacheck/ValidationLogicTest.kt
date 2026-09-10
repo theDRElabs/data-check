@@ -25,7 +25,7 @@ class ValidationLogicTest {
 
     @Test
     fun `delta handles gb range values beyond int range`() {
-        assertEquals(1_000_000_000L, Validation.delta(8_000_000_000_000L, 7_999_999_000_000L))
+        assertEquals(1_000_000_000L, Validation.delta(8_000_000_000_000L, 7_999_000_000_000L))
     }
 
     @Test
