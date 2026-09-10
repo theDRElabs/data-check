@@ -81,7 +81,16 @@ NON-GOALS: full diagnostics screen, manual entry of the Settings figure,
 
 ```markdown
 ISSUE-003: Write VALIDATION.md QA kit
-STATUS: blocked
+STATUS: done
+  (attempt 1: docs-only, one pass. VALIDATION.md at repo root: day-long
+  accuracy procedure with ±1% tolerance and validation-card attribution
+  steps, reboot test (ping within ~one interval, NSM reconciliation,
+  >6 h clamp caveat), signed datacheck-release-apk sideload/upgrade steps,
+  results template. All 32 material behavior claims citation-verified by
+  fresh reviewer (32/32); verdict PASS, 0 blocking / 3 non-blocking notes.
+  Evidence:
+  ~/.config/opencode/runs/data-check/M6/ISSUE-003/attempt-1/ + events.jsonl.
+  Docs commit batched for user approval.)
 TYPE: afk
 BLOCKERS: ISSUE-001, ISSUE-002
 OUTCOME: the user has one repo document to execute the M6 on-device checks
@@ -106,7 +115,17 @@ NON-GOALS: automated/device-farm testing, changing tolerance values
 
 ```markdown
 ISSUE-004: Fresh-context review of existing Kotlin sources
-STATUS: ready
+STATUS: done
+  (attempt 1: one full pass, 13 findings — 1 high (F-01 suspected Room
+  SUM-NULL crash on empty table), 6 medium (midnight attribution, retention
+  predicate mismatch, non-atomic window bookkeeping, swallowed NSM/USM
+  errors, main-thread blocking, silent notification-permission loss),
+  6 low. Fresh reviewer verified 13/13 citations and claims, 0 blocking /
+  2 non-blocking (Mutex placement note on F-04; F-01/F-05 cross-reference),
+  no material false negatives. Findings NOT implemented — awaiting user
+  triage. Evidence:
+  ~/.config/opencode/runs/data-check/M6/ISSUE-004/attempt-1/ + events.jsonl.
+  Docs commit batched for user approval.)
 TYPE: afk
 BLOCKERS: none
 OUTCOME: a findings document (docs/REVIEW-FINDINGS-M6.md) with file:line
@@ -129,7 +148,7 @@ NON-GOALS: implementing fixes, style nitpicks, reopening locked decisions
 
 ```markdown
 ISSUE-005: Run on-device M6 validation and record results
-STATUS: blocked
+STATUS: ready (owner: user, HITL — VALIDATION.md is the checklist)
 TYPE: hitl
 BLOCKERS: ISSUE-001, ISSUE-002, ISSUE-003
 OUTCOME: recorded pass/fail for the day-long accuracy comparison (+/-1%),
