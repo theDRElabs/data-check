@@ -180,7 +180,17 @@ NON-GOALS: emulator-based substitutes, agent-declared pass/fail
 
 ```markdown
 ISSUE-006: Fix double-counting — make tick window bookkeeping atomic
-STATUS: ready
+STATUS: done
+  (two-push TDD via CI. RED: commit c9bb631, run 34587597213 — 7/7
+  predicted TickBookkeeperTest failures, 4 guards + 21 existing green.
+  GREEN: commit e3b919e, run 34588888051 — both jobs green, 28/28 tests,
+  artifacts present. Fresh review PASS: 0 blocking / 3 non-blocking
+  (sync prefs commit inside mutex; write-only cache getter; F-06 main-
+  thread NSM interaction pre-existing), stamp-row harmlessness verified
+  against all DAO queries, deadlock/reentrancy clear. Residual: today's
+  already-double-counted rows stay until ~30d retention purge or reinstall;
+  on-device "delta returns to small" check pending user validation.
+  Evidence: ~/.config/opencode/runs/data-check/M6/ISSUE-006/attempt-1/.)
 TYPE: afk
 BLOCKERS: none
 OUTCOME: a given usage window is sampled exactly once; opening the app
