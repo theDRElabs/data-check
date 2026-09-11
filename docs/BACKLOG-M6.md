@@ -274,7 +274,25 @@ NON-GOALS: carrier zero-rating/metering differences (system-level, out of
 
 ```markdown
 ISSUE-008: Make totalsSince SUM query NULL-safe (F-01)
-STATUS: ready
+STATUS: done
+  (two-push TDD via CI, with one masked test defect fixed mid-flight.
+  RED: commit a853443, run 34625633777 — pin test failed as predicted,
+  but at the WRONG line: androidx.room.Query has BINARY retention, so
+  runtime annotation reflection returns null; the red was misattributed
+  (mechanism defect masked by red — same pattern as ISSUE-002's operand
+  defect). GREEN: commit 1b37cd4 (IFNULL on both SUMs, one SQL line), run
+  34626521082 exposed the defective test. TEST FIX: commit b5b6b9c —
+  pin converted to a source-file read (path candidates + loud error if
+  not found; no silent-skip path; false-red-only failure direction).
+  Final green: run 34627788176 — build+release success, 41/41 tests,
+  artifacts present. Fresh review PASS: 0 blocking / 4 notes (red-first
+  for the corrected mechanism proven statically, not by CI; prose nuance
+  on call-site equivalence; vestigial TotalsRow? nullability kept —
+  callers unchanged per contract; structural-test limitation documented).
+  Audit verified: all 8 @Query methods in the single DAO checked; the
+  other aggregates are GROUP BY (zero rows, not NULL rows) or typed
+  nullable. Evidence:
+  ~/.config/opencode/runs/data-check/M6/ISSUE-008/attempt-1/.)
 TYPE: afk
 BLOCKERS: none
 OUTCOME: totalsSince over an empty match can never crash or return
