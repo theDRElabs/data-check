@@ -228,7 +228,20 @@ NON-GOALS: fixing F-02 midnight attribution, F-03 retention mismatch, or
 
 ```markdown
 ISSUE-007: Bundle tracker counts from bundle-entry time, not cycle start
-STATUS: ready
+STATUS: done
+  (two-push TDD via CI. RED: commit bdc2b03, run 34595788054 — 12/12
+  predicted BundleLogicTest failures, 28 existing green. GREEN: commit
+  7c3053d, run 34596751891 — build+release success, 40/40 tests,
+  artifacts present. Fresh review PASS: 0 blocking / 1 medium + 8 low
+  notes. Key design: BundleLogic pure unit (CardState Hidden/Values);
+  Prefs gained bundleEntryAtMs; Save stamps entry time; bundleUsed =
+  totalsSince(entryAtMs); renewal day kept informational (daysLeft).
+  Migration: legacy installs (bundle set, no stamp) hide the card until
+  re-save, with an in-Settings hint. Residual: F-01 hit-window widened
+  (NB-1, feeds F-01 triage); daysLeft boundary cases untested (NB-3);
+  pct bar direction needs on-device QA. PROJECT.md bundle row updated
+  to match. Evidence:
+  ~/.config/opencode/runs/data-check/M6/ISSUE-007/attempt-1/.)
 TYPE: afk
 BLOCKERS: none
 OUTCOME: "X left" reflects what the user actually has: bundle usage counts
