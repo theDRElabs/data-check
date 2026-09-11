@@ -20,46 +20,33 @@ class SamplingEngine(private val context: Context) {
 
     private val prefs = Prefs(context)
     private val dao = UsageLogDb.get(context).usageLogDao()
+    private val bookkeeper = TickBookkeeper(RoomTickStore(dao), PrefsWindowCache(prefs))
 
     suspend fun runTick(nowMs: Long = System.currentTimeMillis()): TickResult? {
-        val start = resolveWindowStart(nowMs) ?: return null
-        val perUid = queryMobilePerUid(start, nowMs)
-        if (perUid.isEmpty()) return null
-        val device = queryDeviceTotal(start, nowMs)
-        val fgByPkg = foregroundFractions(start, nowMs)
-        val rows = perUid.map { (uid, bytes) ->
-            val pkg = pkgNameForUid(uid)
-            val total = bytes.first + bytes.second
-            val fgBytes: Long
-            val stateSplit = stateSplitForUid(uid, start, nowMs)
-            fgBytes = if (stateSplit != null && stateSplit.first + stateSplit.second > 0) {
-                stateSplit.first.coerceIn(0L, total)
-            } else {
-                val frac = fgByPkg[pkg] ?: 0.0
-                Attribution.split(total, frac).first
-            }
-            val fgRx = if (total > 0) (fgBytes.toDouble() * bytes.first / total).toLong() else 0L
-            val fgTx = fgBytes - fgRx
-            UsageEntity(
-                tickId = 0,
-                tickStart = start,
-                uid = uid,
-                pkg = pkg,
-                rx = bytes.first,
-                tx = bytes.second,
-                fgRx = fgRx,
-                fgTx = fgTx,
-            )
-        }
-        val result = saveTick(
-            start,
-            nowMs,
-            device?.first ?: perUid.values.sumOf { it.first },
-            device?.second ?: perUid.values.sumOf { it.second },
-            rows,
-        )
+        val committed = bookkeeper.runWindow(nowMs) { start, end -> sampleWindow(start, end) }
+            ?: return null
+        dao.deleteOlderThan(committed.endMs - RETENTION_MS)
         prefs.rebootPending = false
-        return result
+        return TickResult(
+            TickEntity(
+                startMs = committed.startMs,
+                endMs = committed.endMs,
+                deviceRx = committed.deviceRx,
+                deviceTx = committed.deviceTx,
+            ),
+            committed.usages.map { usage ->
+                UsageEntity(
+                    tickId = 0L,
+                    tickStart = committed.startMs,
+                    uid = usage.uid,
+                    pkg = usage.pkg,
+                    rx = usage.rx,
+                    tx = usage.tx,
+                    fgRx = usage.fgRx,
+                    fgTx = usage.fgTx,
+                )
+            },
+        )
     }
 
     /**
@@ -74,34 +61,44 @@ class SamplingEngine(private val context: Context) {
         return device.first + device.second
     }
 
-    private suspend fun saveTick(
-        start: Long,
-        end: Long,
-        deviceRx: Long,
-        deviceTx: Long,
-        rows: List<UsageEntity>,
-    ): TickResult {
-        val tick = TickEntity(startMs = start, endMs = end, deviceRx = deviceRx, deviceTx = deviceTx)
-        dao.insertTickWithUsages(tick, rows)
-        dao.deleteOlderThan(end - RETENTION_MS)
-        prefs.lastTickEndMs = end
-        return TickResult(tick, rows)
-    }
-
-    private fun resolveWindowStart(nowMs: Long): Long? {
-        val last = prefs.lastTickEndMs
-        return when {
-            last == 0L -> {
-                prefs.lastTickEndMs = nowMs
-                null
+    /**
+     * Samples one [startMs, endMs] window via NSM (mobile-only, per-uid,
+     * FG/BG attribution) and returns a draft for [TickBookkeeper] to
+     * commit, or null when the window carries no mobile traffic. Runs
+     * inside the bookkeeper's critical section.
+     */
+    private fun sampleWindow(startMs: Long, endMs: Long): TickBookkeeper.TickDraft? {
+        val perUid = queryMobilePerUid(startMs, endMs)
+        if (perUid.isEmpty()) return null
+        val device = queryDeviceTotal(startMs, endMs)
+        val fgByPkg = foregroundFractions(startMs, endMs)
+        val usages = perUid.map { (uid, bytes) ->
+            val pkg = pkgNameForUid(uid)
+            val total = bytes.first + bytes.second
+            val stateSplit = stateSplitForUid(uid, startMs, endMs)
+            val fgBytes: Long
+            fgBytes = if (stateSplit != null && stateSplit.first + stateSplit.second > 0) {
+                stateSplit.first.coerceIn(0L, total)
+            } else {
+                val frac = fgByPkg[pkg] ?: 0.0
+                Attribution.split(total, frac).first
             }
-            nowMs - last > MAX_WINDOW_MS -> {
-                prefs.lastTickEndMs = nowMs - MAX_WINDOW_MS
-                nowMs - MAX_WINDOW_MS
-            }
-            nowMs <= last -> null
-            else -> last
+            val fgRx = if (total > 0) (fgBytes.toDouble() * bytes.first / total).toLong() else 0L
+            val fgTx = fgBytes - fgRx
+            TickBookkeeper.WindowUsage(
+                uid = uid,
+                pkg = pkg,
+                rx = bytes.first,
+                tx = bytes.second,
+                fgRx = fgRx,
+                fgTx = fgTx,
+            )
         }
+        return TickBookkeeper.TickDraft(
+            deviceRx = device?.first ?: perUid.values.sumOf { it.first },
+            deviceTx = device?.second ?: perUid.values.sumOf { it.second },
+            usages = usages,
+        )
     }
 
     @Suppress("DEPRECATION")

@@ -267,9 +267,8 @@ private fun share(context: Context, file: File) {
 }
 
 private suspend fun backfillTick(context: Context) {
-    val prefs = com.drelabs.datacheck.data.Prefs(context)
     val now = System.currentTimeMillis()
-    val last = prefs.lastTickEndMs
+    val last = UsageLogDb.get(context).usageLogDao().latestEndMs() ?: 0L
     if (last == 0L || now - last >= 10 * 60_000L) {
         com.drelabs.datacheck.data.SamplingEngine(context).runTick(now)
     }
