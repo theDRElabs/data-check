@@ -32,6 +32,13 @@ class Prefs(context: Context) {
             sp.edit().putLong(KEY_BUNDLE, value).commit()
         }
 
+    /** Wall-clock ms when the bundle figure was last saved; 0 = never stamped. */
+    var bundleEntryAtMs: Long
+        get() = sp.getLong(KEY_BUNDLE_ENTRY, 0L)
+        set(value) {
+            sp.edit().putLong(KEY_BUNDLE_ENTRY, value).commit()
+        }
+
     var bundleRenewalDay: Int
         get() = sp.getInt(KEY_RENEWAL, 1)
         set(value) {
@@ -49,6 +56,7 @@ class Prefs(context: Context) {
         private const val KEY_REBOOT = "reboot_pending"
         private const val KEY_INTERVAL = "ping_interval_minutes"
         private const val KEY_BUNDLE = "bundle_bytes"
+        private const val KEY_BUNDLE_ENTRY = "bundle_entry_at_ms"
         private const val KEY_RENEWAL = "bundle_renewal_day"
         private const val KEY_VALIDATION = "show_validation_card"
     }

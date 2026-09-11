@@ -100,10 +100,21 @@ fun SettingsScreen(onBack: () -> Unit) {
         OutlinedTextField(
             value = sizeText,
             onValueChange = { sizeText = it },
-            label = { Text("Bundle size") },
+            label = { Text("Data left right now") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth(),
         )
+        Text(
+            "How much data you have left — counting starts when you save.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        if (prefs.bundleBytes > 0 && prefs.bundleEntryAtMs == 0L) {
+            Text(
+                "Your saved figure isn't counted yet — tap Save to start counting from now.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = unitIsGb,
@@ -131,6 +142,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 } else {
                     0L
                 }
+                prefs.bundleEntryAtMs = System.currentTimeMillis()
                 prefs.bundleRenewalDay = renewalDay.toIntOrNull()?.coerceIn(1, 28) ?: 1
                 saved = true
             }) {

@@ -1,6 +1,7 @@
 package com.drelabs.datacheck.data
 
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 /**
  * Pure logic for the bundle card baseline (ISSUE-007).
@@ -42,13 +43,13 @@ object BundleLogic {
     /**
      * Sum of usage rows with tickStart >= [entryAtMs]: usage before the
      * entry is not part of the bundle baseline. Executable spec for the
-     * DAO call totalsSince(entryAtMs) the dashboard makes in phase 2.
-     *
-     * STUB (ISSUE-007 phase 1 RED): always returns 0 so the tests fail
-     * at runtime; phase 2 implements the real window filter.
+     * DAO call totalsSince(entryAtMs) the dashboard makes (same `>=`
+     * window: UsageLogDao totalsSince).
      */
     fun usageSinceEntry(rows: List<UsageRow>, entryAtMs: Long): Long {
-        return 0L
+        return rows.asSequence()
+            .filter { it.tickStart >= entryAtMs }
+            .sumOf { it.total }
     }
 
     /**
@@ -60,10 +61,6 @@ object BundleLogic {
      * - pct = usedBytes / bundleBytes coerced to [0, 1]
      * - daysLeft is derived from today + renewalDay only, never from
      *   the entry timestamp.
-     *
-     * STUB (ISSUE-007 phase 1 RED): always returns a zeroed Values so
-     * the tests fail at runtime; phase 2 implements the real
-     * computation with these exact signatures.
      */
     fun buildState(
         bundleBytes: Long,
@@ -73,12 +70,23 @@ object BundleLogic {
         today: LocalDate,
         renewalDay: Int,
     ): CardState {
+        if (bundleBytes <= 0L || entryAtMs <= 0L) return CardState.Hidden
+        val used = if (entryAtMs > nowMs) 0L else usedSinceEntryBytes
+        val left = (bundleBytes - used).coerceAtLeast(0L)
+        val pct = (used.toDouble() / bundleBytes).toFloat().coerceIn(0f, 1f)
+        val day = renewalDay.coerceIn(1, 28)
+        val cycleStart = if (today.dayOfMonth >= day) {
+            today.withDayOfMonth(day)
+        } else {
+            today.minusMonths(1).withDayOfMonth(day)
+        }
+        val daysLeft = ChronoUnit.DAYS.between(today, cycleStart.plusMonths(1))
         return CardState.Values(
-            bundleBytes = 0L,
-            usedBytes = 0L,
-            leftBytes = 0L,
-            pct = 0f,
-            daysLeft = 0L,
+            bundleBytes = bundleBytes,
+            usedBytes = used,
+            leftBytes = left,
+            pct = pct,
+            daysLeft = daysLeft,
         )
     }
 }

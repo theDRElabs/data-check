@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.drelabs.datacheck.data.BundleLogic
 import com.drelabs.datacheck.data.CsvExporter
 import com.drelabs.datacheck.data.Prefs
 import com.drelabs.datacheck.data.Validation
@@ -52,10 +53,7 @@ data class DashboardData(
     val lastWindowDelta: Long,
     val topAppsToday: List<AppUsageRow>,
     val daily: List<Pair<LocalDate, Long>>,
-    val bundleBytes: Long = 0,
-    val bundleUsed: Long = 0,
-    val bundlePct: Float = 0f,
-    val bundleDaysLeft: Long = 0,
+    val bundle: BundleLogic.CardState = BundleLogic.CardState.Hidden,
     val validation: Validation.CardState = Validation.CardState.Hidden,
 )
 
@@ -113,26 +111,29 @@ fun DashboardScreen(onOpenSettings: () -> Unit = {}) {
                 }
             }
 
-            if (d.bundleBytes > 0) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), Arrangement.spacedBy(6.dp)) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text("Bundle", style = MaterialTheme.typography.labelMedium)
-                            Text("${(d.bundlePct * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+            when (val b = d.bundle) {
+                BundleLogic.CardState.Hidden -> {}
+                is BundleLogic.CardState.Values -> {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text("Bundle", style = MaterialTheme.typography.labelMedium)
+                                Text("${(b.pct * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                            }
+                            LinearProgressIndicator(
+                                progress = { b.pct },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                "${Format.bytes(b.usedBytes)} used since you saved · " +
+                                    "${Format.bytes(b.leftBytes)} left · " +
+                                    "${b.daysLeft}d to renewal",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
-                        LinearProgressIndicator(
-                            progress = { d.bundlePct },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Text(
-                            "${Format.bytes(d.bundleUsed)} of ${Format.bytes(d.bundleBytes)} used · " +
-                                "${Format.bytes((d.bundleBytes - d.bundleUsed).coerceAtLeast(0))} left · " +
-                                "${d.bundleDaysLeft}d to renewal",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
                     }
                 }
             }
@@ -288,17 +289,20 @@ private suspend fun loadDashboard(context: Context): DashboardData {
         .map { (day, rows) -> day to rows.sumOf { it.total } }
         .sortedBy { it.first }
 
-    val bundle = prefs.bundleBytes
-    var bundleUsed = 0L
-    var bundlePct = 0f
-    var daysLeft = 0L
-    if (bundle > 0) {
-        val cycleStart = cycleStart(today, prefs.bundleRenewalDay)
-        bundleUsed = dao.totalsSince(cycleStart.atStartOfDay(zone).toInstant().toEpochMilli())
-            ?.total ?: 0L
-        bundlePct = (bundleUsed.toDouble() / bundle).toFloat().coerceIn(0f, 1f)
-        daysLeft = java.time.temporal.ChronoUnit.DAYS.between(today, cycleStart.plusMonths(1))
+    val entryAtMs = prefs.bundleEntryAtMs
+    val usedSinceEntry = if (entryAtMs > 0) {
+        dao.totalsSince(entryAtMs)?.total ?: 0L
+    } else {
+        0L
     }
+    val bundle = BundleLogic.buildState(
+        bundleBytes = prefs.bundleBytes,
+        entryAtMs = entryAtMs,
+        usedSinceEntryBytes = usedSinceEntry,
+        nowMs = System.currentTimeMillis(),
+        today = today,
+        renewalDay = prefs.bundleRenewalDay,
+    )
 
     val validation = if (prefs.showValidationCard) {
         Validation.buildState(
@@ -317,16 +321,7 @@ private suspend fun loadDashboard(context: Context): DashboardData {
         lastWindowDelta = dao.latestTickTotal()?.total ?: 0L,
         topAppsToday = dao.topAppsSince(midnight, 10),
         daily = daily,
-        bundleBytes = bundle,
-        bundleUsed = bundleUsed,
-        bundlePct = bundlePct,
-        bundleDaysLeft = daysLeft,
+        bundle = bundle,
         validation = validation,
     )
-}
-
-private fun cycleStart(today: LocalDate, renewalDay: Int): LocalDate {
-    val day = renewalDay.coerceIn(1, 28)
-    return if (today.dayOfMonth >= day) today.withDayOfMonth(day)
-    else today.minusMonths(1).withDayOfMonth(day)
 }
