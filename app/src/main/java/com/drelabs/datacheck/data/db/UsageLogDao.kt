@@ -35,7 +35,7 @@ interface UsageLogDao {
     suspend fun topAppsSince(sinceMs: Long, limit: Int): List<AppUsageRow>
 
     @Query(
-        "SELECT SUM(rx + tx) AS total, SUM(fgRx + fgTx) AS fgTotal FROM usage WHERE tickStart >= :sinceMs",
+        "SELECT IFNULL(SUM(rx + tx), 0) AS total, IFNULL(SUM(fgRx + fgTx), 0) AS fgTotal FROM usage WHERE tickStart >= :sinceMs",
     )
     suspend fun totalsSince(sinceMs: Long): TotalsRow?
 
