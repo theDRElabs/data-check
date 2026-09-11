@@ -148,7 +148,18 @@ NON-GOALS: implementing fixes, style nitpicks, reopening locked decisions
 
 ```markdown
 ISSUE-005: Run on-device M6 validation and record results
-STATUS: ready (owner: user, HITL — VALIDATION.md is the checklist)
+STATUS: in progress (owner: user, HITL)
+  Check 3 (sideload/upgrade) PASS, prerequisites PASS. Check 1 (accuracy)
+  FAILED 2026-09-11 with attribution data — spawn per contract:
+  validation card read 2026-09-11: NSM raw today 441 MB / logged today
+  749 MB / delta +308 MB; Android Settings today 470 MB. NSM agrees with
+  Settings (~6%, minutes apart, includes catch-up); LOGGED is +308 MB over
+  NSM → double-counted windows (F-04 race between dashboard catch-up tick
+  and worker tick). Secondary observation: bundle "left" also misleading
+  because usage counts from renewal-cycle start, not bundle-entry time
+  (user entered 121 MB at 17:21 the day before; real balance 63 MB).
+  Follow-ups spawned: ISSUE-006 (F-04 double-count fix), ISSUE-007
+  (bundle baseline semantics). Check 2 (reboot) still pending.
 TYPE: hitl
 BLOCKERS: ISSUE-001, ISSUE-002, ISSUE-003
 OUTCOME: recorded pass/fail for the day-long accuracy comparison (+/-1%),
@@ -167,6 +178,77 @@ CONSTRAINTS: requires the physical phone and ~1 day elapsed time for the
 NON-GOALS: emulator-based substitutes, agent-declared pass/fail
 ```
 
+```markdown
+ISSUE-006: Fix double-counting — make tick window bookkeeping atomic
+STATUS: ready
+TYPE: afk
+BLOCKERS: none
+OUTCOME: a given usage window is sampled exactly once; opening the app
+  while background ticks run can never re-log an already-logged window
+EVIDENCE: validation card 2026-09-11: logged today 749 MB vs NSM raw
+  today 441 MB (delta +308 MB, ~70% over-count) while user repeatedly
+  opened the app to test the card — the F-04 race (REVIEW-FINDINGS-M6.md,
+  SamplingEngine.kt:85-104, DashboardScreen.kt:265-272): window start is
+  read-then-written in SharedPreferences; the dashboard catch-up tick
+  races the WorkManager tick, both insert rows for the same window;
+  crash-after-commit also re-inserts.
+ACCEPTANCE:
+- Window start comes from the DB (latestEndMs-style query), not
+  SharedPreferences read-then-write; SharedPreferences only as cache
+- An app-scoped mutex (companion/singleton level per review NB-1 — NOT a
+  per-instance field, SamplingEngine is constructed per call) serializes
+  runTick across worker and dashboard catch-up paths
+- Regression test: concurrent/interleaved tick scenario in JVM unit test
+  proves no double-insert (may require extracting window bookkeeping into
+  a testable unit)
+- Validation-card delta on a healthy day returns to "small" (expected
+  ≤ one interval of traffic)
+- No Room schema changes; no new dependencies/permissions; TDD red first
+LAYERS: data
+MODULES: SamplingEngine.kt (window bookkeeping), UsageLogDao.kt (window
+  start query), TickWorker.kt/DashboardScreen.kt (call sites only)
+TESTS: JVM unit test for window resolution under interleaving; existing
+  17 tests stay green
+COMMANDS: CI only — testDebugUnitTest + lint via existing workflow
+CONSTRAINTS: locked decisions unchanged; no schema change without
+  migration; commits batched for user approval
+NON-GOALS: fixing F-02 midnight attribution, F-03 retention mismatch, or
+  any other review finding (separate triage)
+```
+
+```markdown
+ISSUE-007: Bundle tracker counts from bundle-entry time, not cycle start
+STATUS: ready
+TYPE: afk
+BLOCKERS: none
+OUTCOME: "X left" reflects what the user actually has: bundle usage counts
+  from when the user entered/reset the bundle figure, not from the
+  renewal-cycle calendar start
+EVIDENCE: user entered 121 MB remaining at 17:21 on 2026-09-10; app showed
+  18 MB left while real balance was 63 MB. DashboardScreen.kt:297-298
+  computes bundleUsed = totalsSince(cycleStart(renewalDay)) — includes
+  usage from before the entry, and treats the entry as the cycle total.
+OUTCOME-NOTE: user-facing semantics decision embedded here: entry means
+  "this is my current remaining balance", consumed from entry time
+  forward. (If the user wants cycle-total semantics instead, say so and
+  this issue changes.)
+ACCEPTANCE:
+- Entering a bundle figure stamps an entry timestamp (persisted)
+- bundleUsed counts only usage rows with tickStart >= entry timestamp
+- Entering a new figure resets the baseline without touching logged rows
+- UI copy makes clear the figure means "remaining as of now"
+- Unit tests for the baseline logic (TDD red first); existing tests green
+- No Room schema changes; no new dependencies/permissions
+LAYERS: data+ui
+MODULES: Prefs.kt (entry timestamp), DashboardScreen.kt (baseline
+  window), SettingsScreen.kt (copy), new pure-logic unit for baseline
+TESTS: JVM unit tests for entry-time baseline computation
+COMMANDS: CI only — testDebugUnitTest + lint via existing workflow
+CONSTRAINTS: locked decisions unchanged; commits batched for user approval
+NON-GOALS: carrier zero-rating/metering differences (system-level, out of
+  scope), changing renewal-day feature, F-02/F-03 fixes
+```
+
 ## Dependency Map
 
 - `ISSUE-001` (release APK) — no blockers. Output: signed artifact + gate.
@@ -176,7 +258,12 @@ NON-GOALS: emulator-based substitutes, agent-declared pass/fail
 - `ISSUE-004` (review pass) — no blockers. Output: findings doc (feeds the
   HITL triage, not any issue here).
 - `ISSUE-005` (on-device validation) — blocked by 001 + 002 + 003: it
-  executes the kit against the shipped APK and the card.
+  executes the kit against the shipped APK and the card. IN PROGRESS:
+  Check 3 PASS, Check 1 FAIL (spawned 006 + 007), Check 2 pending.
+- `ISSUE-006` (double-count fix) — no blockers; spawned from ISSUE-005
+  Check 1 failure with attribution data.
+- `ISSUE-007` (bundle baseline) — no blockers; spawned from ISSUE-005
+  user observation.
 
 ## Parallel Branches
 
@@ -187,7 +274,12 @@ Recommended execution order despite independence: 001 and 002 first (003 and
 ## HITL Queue
 
 - **ISSUE-005** — owner: user. Decision: run the on-device checks, record
-  pass/fail, spawn follow-ups on failure.
+  pass/fail, spawn follow-ups on failure. In progress: Check 3 PASS,
+  Check 1 FAIL (follow-ups 006/007 spawned), Check 2 (reboot) still to run
+  — ideally after ISSUE-006 lands so reconciliation is measured on fixed
+  code.
+- **ISSUE-006 + ISSUE-007 execution** — both ready/AFK; starting them needs
+  user go-ahead (this message's "yes" covers ISSUE-006 first).
 - **Review-findings triage** (after ISSUE-004) — owner: user. Decision: which
   findings become backlog issues.
 - **Size-gate triage** (conditional, after ISSUE-001) — owner: user. Only if
