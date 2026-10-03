@@ -1,4 +1,8 @@
 # DataCheck M6 — Fresh-Context Review Findings
+> **Note, 2026-10-03.** This is a read-only review snapshot from M6, kept
+> verbatim as the record it was meant to be. One locked item below - the
+> "committed keystore" - was later exposed and revoked, and that decision has
+> since been reversed. See `README.md` for the current release-signing model.
 
 Read-only review of the M1–M5 Kotlin sources, produced for user triage (ISSUE-004).
 No code was changed. Every citation was read during this pass.
@@ -484,7 +488,7 @@ for DataCheck" hint; or consciously strike the row from PROJECT.md.
   code matches (SamplingEngine.kt:34-40, 182-205). Not reported.
 - **Silent/no-spam updatable notification, low-importance channel** — locked
   (AGENTS.md:13). Not reported.
-- **Room v1 schema, no destructive migration, committed keystore, <4 MB APK,
+- **Room v1 schema, no destructive migration, committed keystore, <4 MB APK, [SUPERSEDED 2026-10-03]
   CI-only builds** — locked (AGENTS.md:27, 41-42, 50-53). Not reported.
 - **6 h window clamp (`MAX_WINDOW_MS`)** — a deliberate design constant
   (SamplingEngine.kt:98-101, 208). Its *invisibility* is reported via F-05;
