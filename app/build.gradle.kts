@@ -7,11 +7,38 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
-// Release signing: self-signed PKCS12 keystore committed to the repo
-// (personal sideload app — see AGENTS.md). Passwords live alongside in
-// keystore/keystore.properties; PKCS12 uses a single password for store+key.
-val releaseKeystoreProperties = Properties().apply {
-    rootProject.file("keystore/keystore.properties").inputStream().use { load(it) }
+// Release signing credentials are read from the environment (CI secrets), or for
+// local builds from an untracked keystore/keystore.properties.
+//
+// A release key was committed to this repository and became public on 2026-10-03.
+// It was purged from history but is burned. Generate a new one; never commit it.
+// See AGENTS.md and the Release signing section of README.md.
+val keystorePropsFile = rootProject.file("keystore/keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.inputStream().use { load(it) }
+    }
+}
+
+fun secret(name: String): String? =
+    providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+        ?: keystoreProps.getProperty(name)?.takeIf { it.isNotBlank() }
+
+val releaseStoreFile = secret("KEYSTORE_STORE_FILE")?.let { rootProject.file(it) }
+    ?: keystorePropsFile.parentFile?.resolve("datacheck-release.p12")
+val releaseStorePassword = secret("KEYSTORE_STORE_PASSWORD")
+val releaseKeyAlias = secret("KEYSTORE_KEY_ALIAS")
+val releaseStoreType = secret("KEYSTORE_STORE_TYPE") ?: "PKCS12"
+
+val canSignRelease = releaseStoreFile != null && releaseStoreFile.exists() &&
+    releaseStorePassword != null && releaseKeyAlias != null
+
+if (!canSignRelease) {
+    logger.lifecycle(
+        "No release keystore available: assembleRelease will produce an UNSIGNED APK. " +
+            "Set KEYSTORE_STORE_FILE, KEYSTORE_STORE_PASSWORD and KEYSTORE_KEY_ALIAS, " +
+            "or provide an untracked keystore/keystore.properties."
+    )
 }
 
 android {
@@ -27,12 +54,14 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = rootProject.file(releaseKeystoreProperties.getProperty("storeFile"))
-            storeType = releaseKeystoreProperties.getProperty("storeType")
-            storePassword = releaseKeystoreProperties.getProperty("storePassword")
-            keyAlias = releaseKeystoreProperties.getProperty("keyAlias")
-            keyPassword = releaseKeystoreProperties.getProperty("keyPassword")
+        if (canSignRelease) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storeType = releaseStoreType
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = secret("KEYSTORE_KEY_PASSWORD") ?: releaseStorePassword
+            }
         }
     }
 
@@ -41,7 +70,9 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("release")
+            if (canSignRelease) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

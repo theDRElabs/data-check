@@ -39,16 +39,40 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Materialize release keystore from secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.DATA_CHECK_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.DATA_CHECK_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.DATA_CHECK_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ] || [ -z "${KEYSTORE_PASSWORD:-}" ] || [ -z "${KEY_ALIAS:-}" ]; then
+            echo "::warning::Release signing secrets not configured; APK will be UNSIGNED."
+            echo "Set DATA_CHECK_KEYSTORE_BASE64, DATA_CHECK_KEYSTORE_PASSWORD and DATA_CHECK_KEY_ALIAS."
+            exit 0
+          fi
+          mkdir -p keystore
+          printf '%s' "${KEYSTORE_BASE64}" | base64 -d > keystore/datacheck-release.p12
+          umask 077
+          {
+            echo "storeFile=keystore/datacheck-release.p12"
+            echo "storeType=PKCS12"
+            echo "storePassword=${KEYSTORE_PASSWORD}"
+            echo "keyAlias=${KEY_ALIAS}"
+            echo "keyPassword=${KEYSTORE_PASSWORD}"
+          } > keystore/keystore.properties
+          echo "Release signing configured from repository secrets."
+
       - name: Build signed release APK
         run: ./gradlew assembleRelease --stacktrace
 
       - name: Enforce release APK size limit (4 MiB)
         run: |
           APK="$(ls app/build/outputs/apk/release/*.apk)"
-          SIZE="$(stat -c%s "$APK")"
-          echo "Release APK: $APK — $SIZE bytes (gate: must be < 4194304 bytes)"
-          if [ "$SIZE" -ge 4194304 ]; then
-            echo "::error::Release APK is $SIZE bytes, >= the 4194304-byte (4 MiB) limit"
+          SIZE="$(stat -c%s "${APK}")"
+          echo "Release APK: ${APK} — ${SIZE} bytes (gate: must be < 4194304 bytes)"
+          if [ "${SIZE}" -ge 4194304 ]; then
+            echo "::error::Release APK is ${SIZE} bytes, >= the 4 MiB limit"
             exit 1
           fi
 
