@@ -1,7 +1,7 @@
 # DataCheck M6 — Issue Backlog
 > **Superseded in part, 2026-10-03.** ISSUE-001 below specifies a self-signed
 > keystore committed to the repository and explicitly lists
-> "keystore-as-CI-secret" as a NON-GOAL. Both are now reversed - that non-goal [SUPERSEDED 2026-10-03]
+> "keystore-as-CI-secret" as a NON-GOAL. Both are now reversed - that non-goal
 > is precisely what caused the 2026-10-03 key exposure. Signing credentials now
 > come from CI repository secrets and the key is never committed. Retained as a
 > record of the original decision.
