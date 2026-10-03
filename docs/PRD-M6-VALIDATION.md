@@ -1,4 +1,13 @@
 # PRD — DataCheck M6: Validation & Release
+> **Superseded in part, 2026-10-03.** This PRD records what was decided for
+> milestone M6 and is kept as a record of that decision. Its release-signing
+> model is no longer true and must not be followed: the keystore this PRD chose
+> to commit in-repo was exposed when the repository was made public, and was
+> purged from git history on 2026-10-03. That key is revoked. Signing now reads
+> credentials from CI repository secrets (`DATA_CHECK_KEYSTORE_BASE64`,
+> `DATA_CHECK_KEYSTORE_PASSWORD`, `DATA_CHECK_KEY_ALIAS`) and never from the
+> working tree. Claims below about a "committed keystore" are retained only to
+> document the original choice. See `README.md` for the current model.
 
 ## Status
 
@@ -21,7 +30,7 @@ written QA kit.
 Agent-side work plus a QA kit; on-device checks stay with the user.
 
 1. **Release pipeline:** release build variant with minify + resource shrinking,
-   signed with a self-signed keystore committed to the private repo (passwords
+   signed with a self-signed keystore committed to the private repo (passwords [SUPERSEDED 2026-10-03]
    in-repo alongside it). CI attaches the signed release APK as an artifact on
    every green run.
 2. **Size gate:** CI fails the release job if the APK is ≥ 4 MB.
@@ -54,7 +63,7 @@ Agent-side work plus a QA kit; on-device checks stay with the user.
 1. CI `assembleRelease` succeeds and produces a signed APK; existing
    `assembleDebug testDebugUnitTest lint` stay green.
 2. CI release job fails when release APK size ≥ 4 MB (hard gate).
-3. Release APK is signed with the committed keystore and installs as an
+3. Release APK is signed with the committed keystore and installs as an [SUPERSEDED 2026-10-03]
    upgrade over a previous install of the same identity.
 4. Validation card renders only when its Settings toggle is enabled; shows NSM
    raw total, logged-tick sum, delta; renders a visible error state on NSM
@@ -73,7 +82,7 @@ Agent-side work plus a QA kit; on-device checks stay with the user.
   aggregates; it persists nothing beyond its Settings toggle in Prefs.
 - Source of truth for usage remains `NetworkStatsManager`; Room tick log is
   the history store and is never mutated by the validation card.
-- Keystore file + passwords live in the private repo; losing the repo/keystore
+- Keystore file + passwords live in the private repo; losing the repo/keystore [SUPERSEDED 2026-10-03]
   = losing the signing identity (accepted personal-use trade-off).
 
 ## Contracts and Module Map
@@ -88,7 +97,7 @@ Agent-side work plus a QA kit; on-device checks stay with the user.
 ## Security Constraints
 
 - No INTERNET permission; exactly the 4 allowed permissions (locked).
-- Fully offline; no new trust boundaries. Keystore-in-private-repo is an
+- Fully offline; no new trust boundaries. Keystore-in-private-repo is an [SUPERSEDED 2026-10-03]
   accepted trade-off for a personal app.
 
 ## Testing and QA
