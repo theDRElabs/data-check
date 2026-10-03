@@ -1,4 +1,10 @@
 # DataCheck M6 — Issue Backlog
+> **Superseded in part, 2026-10-03.** ISSUE-001 below specifies a self-signed
+> keystore committed to the repository and explicitly lists
+> "keystore-as-CI-secret" as a NON-GOAL. Both are now reversed - that non-goal [SUPERSEDED 2026-10-03]
+> is precisely what caused the 2026-10-03 key exposure. Signing credentials now
+> come from CI repository secrets and the key is never committed. Retained as a
+> record of the original decision.
 
 Generated from `docs/PRD-M6-VALIDATION.md` (accepted). Tracker of record for
 M6 issue status lives in this file.
@@ -22,7 +28,7 @@ ACCEPTANCE:
 - CI release job runs `assembleRelease` and attaches the signed APK as an
   artifact (name: `datacheck-release-apk`)
 - Release buildType has minify + resource shrinking enabled
-- Release signing uses the self-signed keystore committed to the repo
+- Release signing uses the self-signed keystore committed to the repo [SUPERSEDED 2026-10-03]
   (passwords stored alongside in-repo)
 - CI release job fails when the release APK is >= 4 MB (hard gate step)
 - Existing debug job (`assembleDebug testDebugUnitTest lint`) stays green
@@ -34,11 +40,11 @@ TESTS: green CI run with release artifact present; size-gate step present in
 COMMANDS: `gh run watch` / `gh run list --repo theDRElabs/data-check`;
   artifact presence check via `gh api` or run page
 CONSTRAINTS: CI-only builds (no local toolchain); keystore + passwords
-  committed to private repo (user-approved trade-off); git commit/push
+  committed to private repo (user-approved trade-off); git commit/push [SUPERSEDED 2026-10-03]
   requires user approval per repo AGENTS.md — batch for approval at issue
   completion; no new dependencies or permissions; keep the existing
   debug-apk artifact flow unchanged
-NON-GOALS: Play-signing, .aab bundles, keystore-as-CI-secret, size shrinking
+NON-GOALS: Play-signing, .aab bundles, keystore-as-CI-secret, size shrinking [SUPERSEDED 2026-10-03]
   work (only if the gate trips does shrinking become a follow-up issue)
 ```
 
