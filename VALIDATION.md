@@ -134,12 +134,18 @@ Steps:
    ≥ 4 MiB; current builds are ~1.0 MB).
 4. Get the .apk onto the phone and tap it. If prompted, allow your file
    manager or browser to install unknown apps, then tap Install/Update.
-   - Every CI release build is signed with the same committed keystore, so
-     Android performs an in-place update: your logged history and settings
-     are preserved.
-   - If Android refuses with an installation error, the existing install was
-     signed differently (e.g. an old debug build). Uninstall DataCheck first
-     — this clears its data — then install the release APK.
+   - Every release build signed with the SAME keystore performs an in-place
+     update: your logged history and settings are preserved. The signing
+     identity lives in repository secrets, never in the repository.
+   - If Android refuses with an installation error ("App not installed" or
+     "package conflicts with existing version"), the existing install was
+     signed with a different identity. Uninstall DataCheck first - this
+     clears its data - then install the release APK.
+   - Known one-time migration: the keystore that signed builds up to
+     2026-10-03 was exposed when this repository was made public and has been
+     revoked. The first build signed with its replacement CANNOT upgrade that
+     install. Uninstall once, reinstall, then re-enter your bundle settings.
+     After that, upgrades are in-place again.
 5. Open DataCheck and verify:
    - History intact: "Mobile today", "Top apps today", and "Last 7 days"
      are populated as before.
