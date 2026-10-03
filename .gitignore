@@ -10,5 +10,10 @@ captures/
 .cxx/
 *.apk
 *.aab
+*.p12
+*.pfx
+*.jks
 *.keystore
 !debug.keystore
+keystore.properties
+secrets.properties
